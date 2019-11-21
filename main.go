@@ -1,16 +1,15 @@
 package main
 
 import (
-	bot "./bot"
 	"io/ioutil"
 	"log"
+	"telegramm/bot"
 )
 
 func main() {
-	if confByte, err := ioutil.ReadFile("./resources/ssupperbot/conf.yaml"); err == nil {
-		bot.Bot(confByte)
+	if configByte, err := ioutil.ReadFile("./resources/ssupperbot/conf.yaml"); err == nil {
+		bot.Bot(configByte)
 	} else {
 		log.Fatalln(err)
 	}
 }
-

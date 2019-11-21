@@ -3,6 +3,7 @@ package bot
 import (
 	"fmt"
 	"gopkg.in/yaml.v2"
+	"log"
 	"strconv"
 )
 
@@ -16,12 +17,12 @@ type Config struct {
 	End       string
 	Start     string
 	Employee  map[int]int
-	Channel int64
+	Channel   int64
 	Token     string
 	Timeout   int
 	Menu      map[int]Menu
 	current   int
-	answers	  map[int]int
+	answers   map[int]int
 }
 
 func (menu Menu) string() string {
@@ -33,19 +34,15 @@ func (menu Menu) string() string {
 	}
 	return result
 }
-func (menu Menu) copy() Menu {
-	newMenu :=  Menu{}
-	newMenu.Greetings = menu.Greetings
-	mn := make(map[int]string, 0)
+func (menu Menu) copy() (newMenu Menu) {
+	newMenu = Menu{Greetings: menu.Greetings}
+	innerMenu := make(map[int]string, 0)
 	for key, value := range menu.Menu {
-		k := key
-		val := value
-		mn[k] = val
+		innerMenu[key] = value
 	}
-	newMenu.Menu = mn
-	return newMenu
+	newMenu.Menu = innerMenu
+	return
 }
-
 
 func Parse(yamlByte []byte) (config *Config, err error) {
 	var conf Config
@@ -63,14 +60,14 @@ func Parse(yamlByte []byte) (config *Config, err error) {
 
 func (config *Config) getMenu(input int) string {
 	menu := config.Menu[1]
-	if res, ok :=config.Menu[input]; ok {
+	if res, ok := config.Menu[input]; ok {
 		menu = res
 	}
 	return menu.Greetings + menu.string()
 
 }
 
-func (config *Config) Copy() *Config{
+func (config *Config) Copy() *Config {
 	newConfig := Config{}
 	newConfig.Greetings = config.Greetings
 	newConfig.End = config.End
@@ -110,28 +107,30 @@ func (config *Config) next(answer int) int {
 	return config.current
 }
 
-
-func (config *Config) Answer(input string) (string, *int64) {
-	result := ""
+func (config *Config) Answer(input string) (menuPoint string, employeeChannelId *int64) {
 	if config.current == 999 {
-		result += config.Greetings
+		menuPoint = config.Greetings
 		config.current = 0
-	} else if input == config.Start {
+		return
+	}
+	if input == config.Start {
 		config.current = 0
-        result += config.getMenu(config.current);
-	} else {
-		i, err := strconv.Atoi(input)
-		if err == nil {
-			if worker, ok := config.Employee[config.current]; ok {
-				if worker == i {
-					emp := config.Channel
-					return config.End, &emp
-				}
+		menuPoint = config.getMenu(config.current)
+		return
+	}
+	i, err := strconv.Atoi(input)
+	if err == nil {
+		if worker, ok := config.Employee[config.current]; ok {
+			if worker == i {
+				employeeChannelId = &config.Channel
+				menuPoint = config.End
+				return
 			}
-			result += config.getMenu(config.next(i));
-		} else {
-			result += config.getMenu(config.current);
 		}
-    }
-	return result, nil
+		menuPoint = config.getMenu(config.next(i))
+		return
+	}
+	log.Println(err)
+	menuPoint = config.getMenu(config.current)
+	return
 }

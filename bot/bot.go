@@ -8,51 +8,50 @@ import (
 
 func Bot(confByte []byte) {
 
-	config, err := Parse(confByte)
+	baseConfig, err := Parse(confByte)
 	if err != nil {
 		log.Panic(err)
 	}
-	bot, err := tgbotapi.NewBotAPI(config.Token)
+	bot, err := tgbotapi.NewBotAPI(baseConfig.Token)
 	if err != nil {
 		log.Panic(err)
 	}
-
 	log.Printf("Authorized on account %s", bot.Self.UserName)
 
-	u := tgbotapi.NewUpdate(0)
-	u.Timeout = config.Timeout
-	users := make(map[string]*Config, 0)
-	updates, err := bot.GetUpdatesChan(u)
+	updateConfig := tgbotapi.NewUpdate(0)
+	updateConfig.Timeout = baseConfig.Timeout
+	updateChannels, err := bot.GetUpdatesChan(updateConfig)
 
-	for update := range updates {
-		if update.Message == nil {
+	users := make(map[string]*Config, 0)
+
+	for channel := range updateChannels {
+		if channel.Message == nil {
 			continue
 		}
-		userCnf, ok := users[update.Message.From.UserName]
+		userConfig, ok := users[channel.Message.From.UserName]
 		if !ok {
-			userCnf = config.Copy()
-			users[update.Message.From.UserName] = userCnf
+			userConfig = baseConfig.Copy()
+			users[channel.Message.From.UserName] = userConfig
 		}
 
-		re, cn := userCnf.Answer(update.Message.Text)
+		nextMessage, employeeChannel := userConfig.Answer(channel.Message.Text)
 
-		reply := fmt.Sprintf(re)
-		ms := tgbotapi.NewMessage(update.Message.Chat.ID, reply)
-		bot.Send(ms)
-		result := fmt.Sprintf("%v", userCnf.answers)
-		if cn != nil {
-			z := cn
-			sendToMan(*z, update.Message.From.UserName, result, bot)
+		prepareMessage := tgbotapi.NewMessage(channel.Message.Chat.ID, nextMessage)
+		if _, err = bot.Send(prepareMessage); err != nil {
+			log.Println(err)
+		}
+		historyAnswers := fmt.Sprintf("%v", userConfig.answers)
+		if employeeChannel != nil {
+			sendToMan(*employeeChannel, channel.Message.From.UserName, historyAnswers, bot)
 		}
 	}
 }
 
 func sendToMan(channel int64, user string, message string, bot *tgbotapi.BotAPI) {
-	reply := "@" + fmt.Sprintf(user + " " +message)
-	msg := tgbotapi.NewMessage(channel,reply)
-	_, err := bot.Send(msg)
+	reply := "@" + user + " " + message
+	preparedMessage := tgbotapi.NewMessage(channel, reply)
+	_, err := bot.Send(preparedMessage)
 	if err != nil {
-		fmt.Println(user, err.Error())
+		log.Println(user, err.Error())
 	}
-
 }
