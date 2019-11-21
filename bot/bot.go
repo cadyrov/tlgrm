@@ -42,6 +42,7 @@ func Bot(confByte []byte) {
 		}
 		historyAnswers := fmt.Sprintf("%v", userConfig.answers)
 		if employeeChannel != nil {
+			delete(users, channel.Message.From.UserName)
 			sendToMan(*employeeChannel, channel.Message.From.UserName, historyAnswers, bot)
 		}
 	}
